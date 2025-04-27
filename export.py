@@ -2,7 +2,7 @@ import tensorflow as tf
 import os
 
 # 1. 加载已经训练好的模型
-model_path = 'saved_model/best_model.h5'
+model_path = 'saved_model/final_model.h5'
 assert os.path.exists(model_path), f"模型路径不存在: {model_path}"
 
 model = tf.keras.models.load_model(model_path)
