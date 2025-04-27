@@ -1,9 +1,15 @@
 import cv2
 import numpy as np
+import os
 from keras.api.models import Sequential, Model
 from keras.api.layers import *
 from keras.api.preprocessing.image import ImageDataGenerator
 import mediapipe as mp
+from keras.api.callbacks import ModelCheckpoint, EarlyStopping
+import tensorflow as tf
+
+# 设置使用CPU
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 # 数据增强
 train_datagen = ImageDataGenerator(
@@ -54,38 +60,34 @@ train_generator = train_datagen.flow_from_directory(
     subset='training'
 )
 
-model.fit(train_generator, epochs=15)
+val_generator = train_datagen.flow_from_directory(
+    'dataset',
+    target_size=(64,64),
+    batch_size=32,
+    class_mode='binary',
+    subset='validation'
+)
 
-# 摄像头检测
-cap = cv2.VideoCapture(0)
-last_result = False
-consecutive_count = 0
+checkpoint = ModelCheckpoint(
+    'best_model.h5', monitor='val_accuracy',
+    save_best_only=True, verbose=1
+)
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
+early_stop = EarlyStopping(
+    monitor='val_loss', patience=3,
+    restore_best_weights=True, verbose=1
+)
 
-    frame_no_bg = remove_background(frame)
-    resized = cv2.resize(frame_no_bg, (64,64))
-    normalized = resized / 255.0
-    input_img = np.expand_dims(normalized, axis=0)
+# 训练模型
+history = model.fit(
+    train_generator,
+    validation_data=val_generator,
+    epochs=50,
+    callbacks=[checkpoint, early_stop])
 
-    prediction = model.predict(input_img)[0][0]
-    current_result = prediction > 0.5
+# 保存最终模型
+if not os.path.exists('saved_model'):
+    os.makedirs('saved_model')
+model.save('saved_model/final_model.h5')
 
-    if current_result and last_result:
-        consecutive_count += 1
-        if consecutive_count >= 2:
-            cv2.putText(frame, "POSTURE ALERT!", (50,50),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
-    else:
-        consecutive_count = 0
-
-    last_result = current_result
-    cv2.imshow('Posture Monitor', frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-cap.release()
-cv2.destroyAllWindows()
+print("模型训练完成并保存")
