@@ -1,11 +1,11 @@
 import cv2
 import numpy as np
 import os
-from keras.api.models import Sequential, Model
-from keras.api.layers import *
-from keras.api.preprocessing.image import ImageDataGenerator
+from keras.models import Sequential, Model
+from keras.layers import *
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import mediapipe as mp
-from keras.api.callbacks import ModelCheckpoint, EarlyStopping
+from keras.callbacks import ModelCheckpoint, EarlyStopping
 import tensorflow as tf
 
 # 设置使用CPU

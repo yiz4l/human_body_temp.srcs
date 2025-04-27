@@ -2,35 +2,35 @@ import cv2
 import numpy as np
 import os
 import tensorflow as tf
-from keras.api.models import load_model
+from keras.models import load_model
 import time
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 def initialize_camera():
-    # 列出所有可用的摄像头
-    camera_list = []
-    index = 0
-    while True:
+    # 尝试更直接的方式打开摄像头
+    print("尝试检测摄像头...")
+    
+    # 首先尝试直接打开外部摄像头 (通常索引为1或更高)
+    for index in [1, 0, 2, 3]:  # 首先尝试索引1，然后是0，再尝试2和3
+        print(f"尝试打开摄像头索引 {index}")
         cap = cv2.VideoCapture(index)
-        if not cap.read()[0]:
-            break
+        if cap.isOpened():
+            ret, test_frame = cap.read()
+            if ret:
+                print(f"成功打开摄像头 {index}")
+                # 设置摄像头分辨率
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                return cap
+            else:
+                print(f"摄像头 {index} 无法读取帧")
+                cap.release()
         else:
-            camera_list.append(index)
-        cap.release()
-        index += 1
+            print(f"无法打开摄像头 {index}")
     
-    if len(camera_list) < 2:
-        print("未检测到外接USB摄像头")
-        return None
-    
-    # 使用最后一个检测到的摄像头（通常是外接USB摄像头）
-    cap = cv2.VideoCapture(camera_list[-1])
-    if not cap.isOpened():
-        print("无法打开外接USB摄像头")
-        return None
-    
-    return cap
+    print("未找到可用的摄像头")
+    return None
 
 def process_frame(frame, model):
     # 预处理图像
@@ -40,7 +40,7 @@ def process_frame(frame, model):
     
     # 进行预测
     prediction = model.predict(img, verbose=0)
-    result = "异常" if prediction[0][0] > 0.5 else "正常"
+    result = "正常" if prediction[0][0] > 0.5 else "异常"
     confidence = prediction[0][0] if prediction[0][0] > 0.5 else 1 - prediction[0][0]
     
     return result, confidence
@@ -54,33 +54,54 @@ def main():
         # 初始化摄像头
         cap = initialize_camera()
         if cap is None:
+            print("无法初始化摄像头，请检查设备连接")
             return
         
         print("开始摄像头捕获，按'q'键退出...")
         
+        frame_count = 0
+        last_prediction_time = time.time()
+        prediction_interval = 2  # 每2秒进行一次预测
+        
+        result = "等待分析..."
+        confidence = 0.0
+        
         while True:
-            # 每5秒捕获一帧
+            # 读取摄像头画面
             ret, frame = cap.read()
             if not ret:
                 print("无法读取摄像头画面！")
-                break
+                time.sleep(0.5)  # 等待一段时间后重试
+                continue
             
-            # 处理图像并显示结果
-            result, confidence = process_frame(frame, model)
+            # 显示读取成功的帧
+            current_time = time.time()
+            
+            # 只有当经过了预测间隔时间，才进行预测
+            if current_time - last_prediction_time >= prediction_interval:
+                # 处理图像并显示结果
+                result, confidence = process_frame(frame, model)
+                last_prediction_time = current_time
+                frame_count += 1
+                print(f"已处理 {frame_count} 帧图像，结果：{result}，置信度：{confidence:.2%}")
             
             # 在图像上显示结果
             cv2.putText(frame, f"{result} ({confidence:.2%})", 
                         (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             cv2.imshow("Prediction Result", frame)
             
-            # 等待5秒或检测到'q'键按下
-            if cv2.waitKey(5000) & 0xFF == ord('q'):
+            # 使用较短的等待时间来保持界面响应性
+            key = cv2.waitKey(30) & 0xFF
+            if key == ord('q'):
+                print("用户请求退出")
                 break
                 
     except Exception as e:
         print(f"发生错误: {str(e)}")
+        import traceback
+        traceback.print_exc()
     finally:
-        if 'cap' in locals():
+        if 'cap' in locals() and cap is not None:
             cap.release()
         cv2.destroyAllWindows()
 
