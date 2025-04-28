@@ -6,6 +6,7 @@ from keras.layers import *
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import mediapipe as mp
 from keras.callbacks import ModelCheckpoint, EarlyStopping
+from tensorflow.keras.optimizers import Adam
 import tensorflow as tf
 
 # 设置使用CPU
@@ -35,7 +36,7 @@ def remove_background(image):
 
 # 改进模型
 def build_model():
-    input_tensor = Input(shape=(64,64,3))
+    input_tensor = Input(shape=(128,128,3))
     x = Conv2D(32, (3,3), activation='relu')(input_tensor)
     x = MaxPooling2D(2,2)(x)
     x = Conv2D(64, (3,3), activation='relu')(x)
@@ -49,12 +50,12 @@ def build_model():
     return Model(inputs=input_tensor, outputs=output)
 
 model = build_model()
-model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.compile(optimizer=Adam(learning_rate=0.0001), loss='binary_crossentropy', metrics=['accuracy'])
 
 # 训练模型
 train_generator = train_datagen.flow_from_directory(
     'dataset',
-    target_size=(64,64),
+    target_size=(128,128),
     batch_size=32,
     class_mode='binary',
     subset='training'
@@ -62,7 +63,7 @@ train_generator = train_datagen.flow_from_directory(
 
 val_generator = train_datagen.flow_from_directory(
     'dataset',
-    target_size=(64,64),
+    target_size=(128,128),
     batch_size=32,
     class_mode='binary',
     subset='validation'
@@ -74,7 +75,7 @@ checkpoint = ModelCheckpoint(
 )
 
 early_stop = EarlyStopping(
-    monitor='val_loss', patience=3,
+    monitor='val_loss', patience=8,
     restore_best_weights=True, verbose=1
 )
 
@@ -83,7 +84,7 @@ history = model.fit(
     train_generator,
     validation_data=val_generator,
     epochs=50,
-    callbacks=[checkpoint, early_stop])
+    callbacks=[checkpoint])
 
 # 保存最终模型
 if not os.path.exists('saved_model'):

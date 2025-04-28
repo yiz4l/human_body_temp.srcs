@@ -19,7 +19,7 @@ while True:
         continue
 
     # 预处理
-    img = cv2.resize(frame, (64,64)) / 255.0
+    img = cv2.resize(frame, (128,128)) / 255.0
     input_data = np.expand_dims(img, axis=0).astype(np.float32)
 
     # 推理

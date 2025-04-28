@@ -34,13 +34,13 @@ def initialize_camera():
 
 def process_frame(frame, model):
     # 预处理图像
-    img = cv2.resize(frame, (64, 64))
+    img = cv2.resize(frame, (128, 128))
     img = img / 255.0
     img = np.expand_dims(img, axis=0)
     
     # 进行预测
     prediction = model.predict(img, verbose=0)
-    result = "正常" if prediction[0][0] > 0.5 else "异常"
+    result = "异常" if prediction[0][0] > 0.5 else "正常"
     confidence = prediction[0][0] if prediction[0][0] > 0.5 else 1 - prediction[0][0]
     
     return result, confidence
@@ -57,7 +57,7 @@ def main():
             print("无法初始化摄像头，请检查设备连接")
             return
         
-        print("开始摄像头捕获，按'q'键退出...")
+        print("开始摄像头捕获")
         
         frame_count = 0
         last_prediction_time = time.time()
@@ -71,7 +71,7 @@ def main():
             ret, frame = cap.read()
             if not ret:
                 print("无法读取摄像头画面！")
-                time.sleep(0.5)  # 等待一段时间后重试
+                time.sleep(0.5)
                 continue
             
             # 显示读取成功的帧
@@ -90,9 +90,9 @@ def main():
                         (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             cv2.imshow("Prediction Result", frame)
             
-            # 使用较短的等待时间来保持界面响应性
-            key = cv2.waitKey(30) & 0xFF
-            if key == ord('q'):
+            # 使用 cv2.waitKey 保持窗口响应性
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q'):  # 按 'q' 键退出
                 print("用户请求退出")
                 break
                 
